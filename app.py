@@ -1,4 +1,4 @@
-﻿import streamlit as st
+import streamlit as st
 import json
 import os
 from datetime import datetime
@@ -21,9 +21,13 @@ SCENARIOS = {
     ]
 }
 
-def execute_dynamic_triage(emails_json_str, api_key, model_choice="gpt-4o-mini"):
+def execute_dynamic_triage(emails_json_str, api_key):
     from openai import OpenAI
-    client = OpenAI(api_key=api_key)
+    # Connect directly to Gemini via its OpenAI-compatible endpoint
+    client = OpenAI(
+        api_key=api_key,
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+    )
     system_prompt = """
 You are OpsDispatch AI, an enterprise SRE triage engine.
 Analyze these raw enterprise emails:
@@ -52,7 +56,7 @@ Return STRICT JSON:
 }
 """
     response = client.chat.completions.create(
-        model=model_choice,
+        model="gemini-2.5-flash",
         response_format={"type": "json_object"},
         messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": emails_json_str}],
         temperature=0.0
@@ -60,8 +64,7 @@ Return STRICT JSON:
     return json.loads(response.choices[0].message.content)
 
 st.sidebar.title("⚡ OpsDispatch Engine")
-api_key = st.sidebar.text_input("OpenAI API Key", type="password")
-model_choice = st.sidebar.selectbox("Model", ["gpt-4o-mini", "gpt-4o"])
+api_key = st.sidebar.text_input("Gemini API Key (Free)", type="password")
 
 st.title("OpsDispatch AI")
 st.markdown("**Autonomous Incident Clustering & Shift-State Synthesis for Enterprise Operations**")
@@ -96,10 +99,10 @@ with tab_triage:
     with c2:
         if st.button("⚡ Run Dynamic AI Triage", type="primary", use_container_width=True):
             if not api_key.strip():
-                st.error("Enter OpenAI API Key in sidebar.")
+                st.error("Enter Gemini API Key in sidebar.")
             else:
-                with st.spinner("Processing zero-shot clustering..."):
-                    st.session_state.triage_result = execute_dynamic_triage(json.dumps(st.session_state.raw_emails), api_key.strip(), model_choice)
+                with st.spinner("Processing zero-shot clustering via Gemini..."):
+                    st.session_state.triage_result = execute_dynamic_triage(json.dumps(st.session_state.raw_emails), api_key.strip())
 
     if st.session_state.triage_result:
         res = st.session_state.triage_result
